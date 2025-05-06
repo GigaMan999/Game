@@ -274,7 +274,7 @@
             function checkResult() {
                 // التحقق من الفوز
                 if (checkWin(gameState, currentPlayer)) {
-                    endGame(`${getPlayerName(currentPlayer)} فاز!`);
+                    endGame(`${getPlayerName(currentPlayer)} ${getWinPhrase(currentPlayer)}`);
                     updateStats(currentPlayer);
                     return;
                 }
@@ -290,6 +290,15 @@
                 // تبديل اللاعب
                 currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
                 updateGameStatus();
+            }
+            
+            // الحصول على عبارة الفوز المناسبة
+            function getWinPhrase(player) {
+                if (gameMode === 'human') {
+                    return 'فاز!';
+                } else {
+                    return player === 'X' ? 'فزت!' : 'فاز!';
+                }
             }
             
             // إنهاء اللعبة
@@ -321,7 +330,7 @@
             // تحديث حالة اللعبة
             function updateGameStatus() {
                 if (gameMode === 'human') {
-                    currentPlayerElement.textContent = player === 'X' ? 'دور اللاعب الأول' : 'دور اللاعب الثاني';
+                    currentPlayerElement.textContent = currentPlayer === 'X' ? 'دور اللاعب الأول' : 'دور اللاعب الثاني';
                 } else {
                     currentPlayerElement.textContent = currentPlayer === 'X' ? 'دورك' : 'دور الخصم';
                 }
