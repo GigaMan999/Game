@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة XO - ضد الكمبيوتر أو لاعبان</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .game-mode {
+            margin-bottom: 20px;
+        }
+        
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            grid-template-rows: repeat(3, 100px);
+            gap: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .cell {
+            width: 100px;
+            height: 100px;
+            background-color: #fff;
+            border: 2px solid #2c3e50;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 48px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .cell:hover {
+            background-color: #e0e0e0;
+        }
+        
+        .status {
+            font-size: 24px;
+            margin-bottom: 20px;
+            font-weight: bold;
+            color: #2c3e50;
+            text-align: center;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #2c3e50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #1a252f;
+        }
+        
+        .x-symbol {
+            color: #e74c3c;
+        }
+        
+        .o-symbol {
+            color: #3498db;
+        }
+        
+        .stats {
+            margin-top: 20px;
+            font-size: 18px;
+            text-align: center;
+        }
+        
+        select {
+            padding: 8px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: 1px solid #2c3e50;
+        }
+    </style>
+</head>
+<body>
+    <h1>لعبة XO</h1>
+    
+    <div class="game-mode">
+        <select id="game-mode">
+            <option value="human">لاعبان</option>
+            <option value="computer">ضد الكمبيوتر</option>
+        </select>
+    </div>
+    
+    <div class="status">
+        <div id="game-status"><span id="current-player">دورك</span></div>
+        <div id="result-message"></div>
+    </div>
+    
+    <div class="board" id="board">
+        <div class="cell" data-index="0"></div>
+        <div class="cell" data-index="1"></div>
+        <div class="cell" data-index="2"></div>
+        <div class="cell" data-index="3"></div>
+        <div class="cell" data-index="4"></div>
+        <div class="cell" data-index="5"></div>
+        <div class="cell" data-index="6"></div>
+        <div class="cell" data-index="7"></div>
+        <div class="cell" data-index="8"></div>
+    </div>
+    
+    <div class="controls">
+        <button id="reset-btn">إعادة اللعب</button>
+    </div>
+    
+    <div class="stats">
+        <div>X فاز: <span id="x-wins">0</span> مرات</div>
+        <div>O فاز: <span id="o-wins">0</span> مرات</div>
+        <div>تعادل: <span id="draws">0</span> مرات</div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const board = document.getElementById('board');
+            const cells = document.querySelectorAll('.cell');
+            const currentPlayerElement = document.getElementById('current-player');
+            const resultMessageElement = document.getElementById('result-message');
+            const resetButton = document.getElementById('reset-btn');
+            const gameModeSelect = document.getElementById('game-mode');
+            
+            // إحصائيات اللعبة
+            const xWinsElement = document.getElementById('x-wins');
+            const oWinsElement = document.getElementById('o-wins');
+            const drawsElement = document.getElementById('draws');
+            
+            let currentPlayer = 'X';
+            let gameState = ['', '', '', '', '', '', '', '', ''];
+            let gameActive = true;
+            let gameMode = 'human';
+            let stats = { xWins: 0, oWins: 0, draws: 0 };
+            
+            const winningConditions = [
+                [0, 1, 2], [3, 4, 5], [6, 7, 8], // صفوف
+                [0, 3, 6], [1, 4, 7], [2, 5, 8], // أعمدة
+                [0, 4, 8], [2, 4, 6]             // أقطار
+            ];
+            
+            // تهيئة اللعبة
+            function initGame() {
+                cells.forEach(cell => {
+                    cell.addEventListener('click', handleCellClick);
+                });
+                
+                resetButton.addEventListener('click', resetGame);
+                gameModeSelect.addEventListener('change', changeGameMode);
+                
+                updateGameStatus();
+            }
+            
+            // تغيير نمط اللعبة
+            function changeGameMode() {
+                gameMode = gameModeSelect.value;
+                resetGame();
+            }
+            
+            // التعامل مع نقرات الخلايا
+            function handleCellClick(e) {
+                if (!gameActive) return;
+                
+                const clickedCell = e.target;
+                const clickedCellIndex = parseInt(clickedCell.getAttribute('data-index'));
+                
+                if (gameState[clickedCellIndex] !== '') return;
+                
+                makeMove(clickedCellIndex, currentPlayer);
+                
+                // إذا كانت اللعبة ضد الكمبيوتر وحان دوره
+                if (gameActive && gameMode === 'computer' && currentPlayer === 'O') {
+                    setTimeout(computerMove, 500);
+                }
+            }
+            
+            // تنفيذ حركة
+            function makeMove(index, player) {
+                gameState[index] = player;
+                cells[index].textContent = player;
+                cells[index].classList.add(player === 'X' ? 'x-symbol' : 'o-symbol');
+                
+                checkResult();
+            }
+            
+            // حركة الكمبيوتر
+            function computerMove() {
+                if (!gameActive) return;
+                
+                // إستراتيجية بسيطة للكمبيوتر
+                let availableCells = [];
+                gameState.forEach((cell, index) => {
+                    if (cell === '') availableCells.push(index);
+                });
+                
+                if (availableCells.length > 0) {
+                    // 1. حاول الفوز إذا أمكن
+                    for (let i = 0; i < availableCells.length; i++) {
+                        const testBoard = [...gameState];
+                        testBoard[availableCells[i]] = 'O';
+                        if (checkWin(testBoard, 'O')) {
+                            makeMove(availableCells[i], 'O');
+                            return;
+                        }
+                    }
+                    
+                    // 2. حاول منع الخصم من الفوز
+                    for (let i = 0; i < availableCells.length; i++) {
+                        const testBoard = [...gameState];
+                        testBoard[availableCells[i]] = 'X';
+                        if (checkWin(testBoard, 'X')) {
+                            makeMove(availableCells[i], 'O');
+                            return;
+                        }
+                    }
+                    
+                    // 3. اختر مركز اللوحة إذا كان متاحًا
+                    if (gameState[4] === '') {
+                        makeMove(4, 'O');
+                        return;
+                    }
+                    
+                    // 4. اختر زاوية عشوائية
+                    const corners = [0, 2, 6, 8];
+                    const availableCorners = corners.filter(corner => gameState[corner] === '');
+                    if (availableCorners.length > 0) {
+                        const randomCorner = availableCorners[Math.floor(Math.random() * availableCorners.length)];
+                        makeMove(randomCorner, 'O');
+                        return;
+                    }
+                    
+                    // 5. اختر أي خلية متاحة
+                    const randomIndex = Math.floor(Math.random() * availableCells.length);
+                    makeMove(availableCells[randomIndex], 'O');
+                }
+            }
+            
+            // التحقق من الفوز
+            function checkWin(board, player) {
+                for (let i = 0; i < winningConditions.length; i++) {
+                    const [a, b, c] = winningConditions[i];
+                    if (board[a] === player && board[b] === player && board[c] === player) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            
+            // التحقق من النتيجة
+            function checkResult() {
+                // التحقق من الفوز
+                if (checkWin(gameState, currentPlayer)) {
+                    endGame(`${getPlayerName(currentPlayer)} فاز!`);
+                    updateStats(currentPlayer);
+                    return;
+                }
+                
+                // التحقق من التعادل
+                if (!gameState.includes('')) {
+                    endGame('تعادل!');
+                    stats.draws++;
+                    drawsElement.textContent = stats.draws;
+                    return;
+                }
+                
+                // تبديل اللاعب
+                currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+                updateGameStatus();
+            }
+            
+            // إنهاء اللعبة
+            function endGame(message) {
+                gameActive = false;
+                resultMessageElement.textContent = message;
+            }
+            
+            // تحديث إحصائيات اللعبة
+            function updateStats(winner) {
+                if (winner === 'X') {
+                    stats.xWins++;
+                    xWinsElement.textContent = stats.xWins;
+                } else if (winner === 'O') {
+                    stats.oWins++;
+                    oWinsElement.textContent = stats.oWins;
+                }
+            }
+            
+            // الحصول على اسم اللاعب
+            function getPlayerName(player) {
+                if (gameMode === 'human') {
+                    return player === 'X' ? 'اللاعب الأول' : 'اللاعب الثاني';
+                } else {
+                    return player === 'X' ? 'أنت' : 'الخصم';
+                }
+            }
+            
+            // تحديث حالة اللعبة
+            function updateGameStatus() {
+                if (gameMode === 'human') {
+                    currentPlayerElement.textContent = player === 'X' ? 'دور اللاعب الأول' : 'دور اللاعب الثاني';
+                } else {
+                    currentPlayerElement.textContent = currentPlayer === 'X' ? 'دورك' : 'دور الخصم';
+                }
+                resultMessageElement.textContent = '';
+            }
+            
+            // إعادة اللعبة
+            function resetGame() {
+                currentPlayer = 'X';
+                gameState = ['', '', '', '', '', '', '', '', ''];
+                gameActive = true;
+                
+                cells.forEach(cell => {
+                    cell.textContent = '';
+                    cell.classList.remove('x-symbol', 'o-symbol');
+                });
+                
+                updateGameStatus();
+                
+                // إذا كانت اللعبة ضد الكمبيوتر وبدأ الكمبيوتر
+                if (gameMode === 'computer' && currentPlayer === 'O') {
+                    setTimeout(computerMove, 500);
+                }
+            }
+            
+            // بدء اللعبة
+            initGame();
+        });
+    </script>
+</body>
+</html>
